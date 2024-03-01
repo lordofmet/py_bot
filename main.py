@@ -5,7 +5,7 @@ import time
 from threading import Thread
 import pickle
 
-connect = sqlite3.connect("/Users/dmirt/PycharmProjects/db", check_same_thread=False)
+connect = sqlite3.connect("/Users/dmirt/PycharmProjects/db.db", check_same_thread=False)
 curs = connect.cursor()
 print(connect)
 
@@ -21,13 +21,14 @@ CREATE TABLE IF NOT EXISTS users (
     month    INTEGER NOT NULL,
     year     INTEGER NOT NULL,
     name     TEXT    NOT NULL,
-    tg_msg   TEXT    NOT NULL
+    tg_msg   TEXT    NOT NULL,
+    congrat  INTEGER NOT NULL
 );
 ''')
 
-def db_table_add(user_id: int, username: str, day: int, month: int, year: int, name: str, tg_msg: str):
-    curs.execute('INSERT INTO users (user_id, username, day, month, year, name, tg_msg) VALUES(?, ?, ?, ?, ?, ?, ?)',
-                                    (user_id, username,day, month, year, name, tg_msg))
+def db_table_add(user_id: int, username: str, day: int, month: int, year: int, name: str, tg_msg: str, congrat: int):
+    curs.execute('INSERT INTO users (user_id, username, day, month, year, name, tg_msg, congrat) VALUES(?, ?, ?, ?, ?, ?, ?, ?)',
+                                    (user_id, username,day, month, year, name, tg_msg, congrat))
     connect.commit()
 
 def readFileToStr(file):
@@ -119,8 +120,9 @@ def got_add_query(msg):
     name = s1[1]
     tg_msg = pickle.dumps(msg)
     print("deserealized: ", tg_msg)
+    congrat = 0
 
-    db_table_add(uid, uname, day, month, year, name, tg_msg)
+    db_table_add(uid, uname, day, month, year, name, tg_msg, congrat)
     bot.send_message(msg.chat.id, 'Ваша дата была добавлена в БД')
 
     #check_date(msg)
@@ -194,7 +196,13 @@ def polling():
 
 def check_dates():
     while True:
-        for person in curs.execute("SELECT day, month, year, name, tg_msg FROM users"):
+        curT = str(datetime.datetime.now())
+        curT = curT.split(' ')
+        cur_date = curT[0]
+        cur_date = cur_date.split('-')
+        prev_year = int(cur_date[0])
+        print("fs ", prev_year)
+        for person in curs.execute("SELECT day, month, year, name, tg_msg, congrat, id, username FROM users"):
             tday = person[0]
             tmonth = person[1]
             tyear = person[2]
@@ -202,6 +210,10 @@ def check_dates():
 
             tmsg = person[4]
             tg_msg = pickle.loads(tmsg)
+
+            congrated_this_year = int(person[5])
+            print(congrated_this_year, "= congrats")
+            id = int(person[6])
 
             curT = str(datetime.datetime.now())
             curT = curT.split(' ')
@@ -211,16 +223,35 @@ def check_dates():
             cur_month = int(cur_date[1])
             cur_year = int(cur_date[0])
 
-            if cur_day == tday and cur_month == tmonth:
+            if cur_year > prev_year:
+                print("entered cmp")
+                print(cur_year, prev_year)
+                prev_year = cur_year
+                curs.execute('UPDATE users SET congrat = 0')
+                connect.commit()
+
+
+            if cur_day == tday and cur_month == tmonth and congrated_this_year == 0:
                 print("there is some match")
                 if tyear > 24:
                     tyear = 1900 + tyear
                 else:
                     tyear = 2000 + tyear
+
+
+                username = person[7]
+
+                sql = "UPDATE users SET congrat = 1 WHERE username = ?"
+                curs.execute(sql, (username,))
+                connect.commit()
+                print(username)
+
                 f = "Поздравляем " + str(tname) + " ему(ей) " + str(int(cur_year - tyear))
                 bot.send_message(tg_msg.chat.id, f)
             else:
                 print("not a match")
+
+
         time.sleep(60)
 
 
