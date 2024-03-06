@@ -5,7 +5,15 @@ import time
 from threading import Thread
 import pickle
 
-connect = sqlite3.connect("/Users/dmirt/PycharmProjects/db.db", check_same_thread=False)
+
+'''
+TODO
+год: str -> int
+4 знака
+подправить под это дело методы
+'''
+
+connect = sqlite3.connect("/Users/dmirt/PycharmProjects/bot/db.db", check_same_thread=False)
 curs = connect.cursor()
 print(connect)
 
@@ -14,8 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     id       INTEGER PRIMARY KEY AUTOINCREMENT
                      UNIQUE
                      NOT NULL,
-    user_id  INTEGER UNIQUE
-                     NOT NULL,
+    user_id  INTEGER NOT NULL,
     username TEXT    NOT NULL,
     day      INTEGER NOT NULL,
     month    INTEGER NOT NULL,
@@ -57,6 +64,38 @@ def add(message):
     msg = bot.send_message(message.from_user.id, s)
     bot.register_next_step_handler(msg, got_add_query)
 
+def convert (day, month, year):
+    s = ""
+    if (day < 10):
+        day_str = '0' + str(day)
+    else:
+        day_str = str(day)
+    if (month < 10):
+        month_str = '0' + str(month)
+    else:
+        month_str = str(month)
+    year = str(year)
+    s = day_str + "." + month_str + "." + year
+
+    return s
+
+@bot.message_handler(commands=["list"])
+def get_list(message):
+    file = open("list.txt", 'r', encoding="utf-8")
+    t = readFileToStr(file)
+    file.close()
+    bot.send_message(message.chat.id, t)
+    s = ""
+    for person in curs.execute("SELECT * FROM users"):
+        name = person[6]
+        day = person[3]
+        month = person[4]
+        year = person[5]
+        s += name + '\n' + convert(day, month, year)
+        s += "\n"
+
+    bot.send_message(message.chat.id, s)
+
 def got_add_query(msg):
     s1 = msg.text.split(' ')
 
@@ -70,15 +109,14 @@ def got_add_query(msg):
 
     s = s1[0]
 
-    if (len(s) != 8):
+    if (len(s) != 10):
         print(len(s))
         print(s)
-        warning = "Некорректный ввод даты"
+        warning = "Некорректный ввод даты4"
         bot.send_message(msg.chat.id, warning)
         add(msg)
         return
 
-    flag = 0
     for i in s:
         if i == '.':
             continue
@@ -108,15 +146,22 @@ def got_add_query(msg):
         add(msg)
         return
 
-    first_num = int(s[6]) - int('0')
-    second_num = int(s[7]) - int('0')
-    year = first_num * 10 + second_num
+    year = s[6:]
+    year = int(year)
+
+    cur_date = str(datetime.datetime.now())
+    cur_date = cur_date.split()
+    cur_year = (cur_date[0].split('-'))[0]
+    if (year > int(cur_year)):
+        warning = "Некорретный ввод даты"
+        bot.send_message(msg.chat.id, warning)
+        add(msg)
+        return
 
     uid = msg.from_user.id
     uname = msg.from_user.username
     day = int(day)
     month = int(month)
-    year = int(year)
     name = s1[1]
     tg_msg = pickle.dumps(msg)
     print("deserealized: ", tg_msg)
@@ -230,15 +275,8 @@ def check_dates():
                 curs.execute('UPDATE users SET congrat = 0')
                 connect.commit()
 
-
             if cur_day == tday and cur_month == tmonth and congrated_this_year == 0:
                 print("there is some match")
-                if tyear > 24:
-                    tyear = 1900 + tyear
-                else:
-                    tyear = 2000 + tyear
-
-
                 username = person[7]
 
                 sql = "UPDATE users SET congrat = 1 WHERE username = ?"
@@ -252,8 +290,7 @@ def check_dates():
                 print("not a match")
 
 
-        time.sleep(60)
-
+        time.sleep(5)
 
 
 polling_thread = Thread(target = polling)

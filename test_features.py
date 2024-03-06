@@ -1,3 +1,4 @@
-string = "00"
+str = "12345678"
 
-print(int(string))
+for i in range(0, 6):
+    print(str[i])
