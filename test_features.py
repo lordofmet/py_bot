@@ -1,4 +1,5 @@
-str = "12345678"
+s = "12345"
 
-for i in range(0, 6):
-    print(str[i])
+s = s.split()
+
+print(len(s))

@@ -5,14 +5,6 @@ import time
 from threading import Thread
 import pickle
 
-
-'''
-TODO
-год: str -> int
-4 знака
-подправить под это дело методы
-'''
-
 connect = sqlite3.connect("/Users/dmirt/PycharmProjects/bot/db.db", check_same_thread=False)
 curs = connect.cursor()
 print(connect)
@@ -81,10 +73,12 @@ def convert (day, month, year):
 
 @bot.message_handler(commands=["list"])
 def get_list(message):
+
     file = open("list.txt", 'r', encoding="utf-8")
     t = readFileToStr(file)
     file.close()
     bot.send_message(message.chat.id, t)
+
     s = ""
     for person in curs.execute("SELECT * FROM users"):
         name = person[6]
@@ -92,9 +86,135 @@ def get_list(message):
         month = person[4]
         year = person[5]
         s += name + '\n' + convert(day, month, year)
-        s += "\n"
+        s += "\n\n"
 
     bot.send_message(message.chat.id, s)
+
+@bot.message_handler(commands = ["edit"])
+def edit(message):
+
+    file = open("edit.txt", 'r', encoding = "utf-8")
+    t = readFileToStr(file)
+    file.close()
+    msg = bot.send_message(message.chat.id, t)
+
+    bot.register_next_step_handler(msg, got_edit_query)
+
+def got_edit_query(message):
+
+    s = message.text.split(' ')
+
+    date = s[0]
+
+    if (len(date) != 10):
+        warning = "Некорректный ввод1"
+        bot.send_message(message.chat.id, warning)
+        edit(message)
+        return
+
+    date = date.split('.')
+    name = ""
+
+    if (len(s) > 1):
+        name = s[1]
+
+    if (len(s) > 2 or len(s) == 0 or len(date) != 3):
+        warning = "Некорректный ввод2"
+        print(len(s))
+        print(len(date))
+        bot.send_message(message.chat.id, warning)
+        edit(message)
+        return
+
+    day = int(date[0])
+    month = int(date[1])
+    year = int(date[2])
+    print("day, month, year", day, month, year)
+
+    if (name != ""):
+        name = str(name)
+
+    flag = 0
+    print(day, month, year, name)
+    for person in curs.execute("SELECT day, month, year, name FROM users"):
+        table_day = int(person[0])
+        table_month = int(person[1])
+        print(person[2])
+        table_year = int(person[2])
+        table_name = str(person[3])
+        print(table_day, table_month, table_year, table_name)
+        if (table_day == day and table_month == month and table_year == year):
+            if (name != "" and table_name != name):
+                continue
+            flag = 1
+            if (flag):
+                break
+
+    if (flag == 0):
+        warning = "Запись не найдена. Проверьте правильность и повторите попытку при необходимости"
+        bot.send_message(message.chat.id, warning)
+        return
+
+    file = open("edit1.txt", 'r', encoding = "utf-8")
+    t = readFileToStr(file)
+    msg = bot.send_message(message.chat.id, t)
+
+    bot.register_next_step_handler(msg, edit_query_handling, day, month, year, name)
+
+def edit_query_handling(message, d, m, y, n):
+
+    s = message.text.split(' ')
+
+    date = s[0]
+
+    if (len(date) != 10 or len(s) != 2):
+        warning = "Некорректный ввод"
+        bot.send_message(message.chat.id, warning)
+        edit(message)
+        return
+
+    date = s[0]
+    name = s[1]
+
+    for i in date:
+        if i == '.':
+            continue
+        if not i.isdigit():
+            warning = "Некорректный ввод даты"
+            bot.send_message(message.chat.id, warning)
+            edit(message)
+            return
+
+    date = date.split('.')
+    print(date)
+    day = date[0]
+    month = date[1]
+    year = date[2]
+    name = str(name)
+
+    for person in curs.execute("SELECT day, month, year, name FROM users"):
+        table_day = int(person[0])
+        table_month = int(person[1])
+        table_year = int(person[2])
+        table_name = person[3]
+
+        if (table_day == d and table_month == m and table_year == y and table_name == n):
+            table_day = day
+            table_month = month
+            table_year = year
+            table_name = name
+
+            #sql = "UPDATE users SET day = ?, month = ?, year = ?, name = ? WHERE day = ?, month = ?, year = ?, name = ?"
+            #curs.execute(sql, (day, month, year, name, d, m, y, n,))
+
+            sql = "UPDATE users SET day = ?, month = ?, year = ?, name = ? WHERE day = ? AND month = ? AND year = ? AND name = ?"
+            curs.execute(sql, (day, month, year, name, d, m, y, n,))
+
+            connect.commit()
+
+            done = "Запись изменена"
+            bot.send_message(message.chat.id, done)
+
 
 def got_add_query(msg):
     s1 = msg.text.split(' ')
@@ -290,7 +410,7 @@ def check_dates():
                 print("not a match")
 
 
-        time.sleep(5)
+        time.sleep(60)
 
 
 polling_thread = Thread(target = polling)
