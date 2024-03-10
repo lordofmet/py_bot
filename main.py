@@ -3,6 +3,7 @@ import sqlite3
 import datetime
 import time
 from threading import Thread
+from telebot import types
 import pickle
 
 connect = sqlite3.connect("/Users/dmirt/PycharmProjects/bot/db.db", check_same_thread=False)
@@ -42,10 +43,32 @@ bot = telebot.TeleBot(token)
 
 @bot.message_handler(commands = ["start"])
 def start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = "➕ Добавить дату"
+    btn2 = "➖ Удалить дату"
+    btn3 = "✍️Изменить дату"
+    btn4 = "📄 Список"
+    markup.add(btn1, btn2, btn3, btn4)
     file = open("greeting.txt", 'r', encoding="utf-8")
     s = readFileToStr(file)
     file.close()
-    bot.send_message(message.chat.id, s)
+    bot.send_message(message.chat.id, s, reply_markup=markup)
+
+@bot.message_handler(content_types=['text'])
+def text_handler(message):
+    if message.text == "➕ Добавить дату" or message.text == "/edit":
+        add(message)
+    elif message.text == "➖ Удалить дату" or message.text == "del":
+        got_del_query(message)
+    elif message.text == "✍️Изменить дату" or message.text == "edit":
+        edit(message)
+    elif message.text == "📄 Список" or message.text == "list":
+        get_list(message)
+    else:
+        file = open("idunno.txt", 'r', encoding="utf-8")
+        s = readFileToStr(file)
+        file.close()
+        bot.send_message(message.chat.id, s)
 
 @bot.message_handler(commands = ["add"])
 def add(message):
@@ -136,22 +159,21 @@ def got_edit_query(message):
     if (len(date) != 10):
         warning = "Некорректный ввод1"
         bot.send_message(message.chat.id, warning)
-        edit(message)
         return
 
     date = date.split('.')
-    name = ""
 
-    if (len(s) > 1):
-        name = s[1]
-
-    if (len(s) > 2 or len(s) == 0 or len(date) != 3):
+    if (len(s) <= 1 or len(date) != 3):
         warning = "Некорректный ввод2"
         print(len(s))
         print(len(date))
         bot.send_message(message.chat.id, warning)
-        edit(message)
         return
+
+    name = ""
+    for i in range(1, len(s)):
+        name += s[i]
+        name += ' '
 
     day = int(date[0])
     month = int(date[1])
@@ -194,14 +216,17 @@ def edit_query_handling(message, d, m, y, n):
 
     date = s[0]
 
-    if (len(date) != 10 or len(s) != 2):
+    if (len(date) != 10 or len(s) < 2):
         warning = "Некорректный ввод"
         bot.send_message(message.chat.id, warning)
         edit(message)
         return
 
     date = s[0]
-    name = s[1]
+    name = ""
+    for i in range(1, len(s)):
+        name += s[i]
+        name += ' '
 
     for i in date:
         if i == '.':
@@ -254,6 +279,11 @@ def got_add_query(msg):
         add(msg)
         return'''
 
+    if (len(s1) == 1):
+        warning = "Некорретный ввод: не найдено имя человека"
+        bot.send_message(msg.chat.id, warning)
+        return
+
     name = ""
     for i in range(1, len(s1)):
         name += s1[i]
@@ -266,7 +296,6 @@ def got_add_query(msg):
         print(s)
         warning = "Некорректный ввод даты"
         bot.send_message(msg.chat.id, warning)
-        add(msg)
         return
 
     for i in s:
@@ -275,7 +304,6 @@ def got_add_query(msg):
         if not i.isdigit():
             warning = "Некорректный ввод даты"
             bot.send_message(msg.chat.id, warning)
-            add(msg)
             return
 
     first_num = int(s[0]) - int('0')
@@ -285,7 +313,6 @@ def got_add_query(msg):
     if (day > 31):
         warning = "Некорректный ввод даты"
         bot.send_message(msg.chat.id, warning)
-        add(msg)
         return
 
     first_num = int(s[3]) - int('0')
@@ -295,7 +322,6 @@ def got_add_query(msg):
     if (month > 12):
         warning = "Некорректный ввод даты"
         bot.send_message(msg.chat.id, warning)
-        add(msg)
         return
 
     year = s[6:]
@@ -307,7 +333,6 @@ def got_add_query(msg):
     if (year > int(cur_year)):
         warning = "Некорретный ввод даты"
         bot.send_message(msg.chat.id, warning)
-        add(msg)
         return
 
     uid = msg.from_user.id
