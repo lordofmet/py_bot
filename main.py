@@ -53,8 +53,35 @@ def add(message):
     s = readFileToStr(file)
     file.close()
 
-    msg = bot.send_message(message.from_user.id, s)
+    msg = bot.send_message(message.chat.id, s) #
     bot.register_next_step_handler(msg, got_add_query)
+
+@bot.message_handler(commands = ["del"])
+def got_del_query(message):
+    file = open("delete.txt", 'r', encoding = "utf-8")
+    s = readFileToStr(file)
+    file.close()
+
+    msg = bot.send_message(message.chat.id, s)
+    bot.register_next_step_handler(msg, del_query_handling)
+
+def del_query_handling(message):
+    s = message.text
+
+    name = str(s)
+    for person in curs.execute("SELECT name FROM users"):
+        table_name = person[0]
+        if name == table_name:
+            sql = "DELETE FROM users WHERE name = ?"
+            curs.execute(sql, (name,))
+            connect.commit()
+            success = "Запись была удалена"
+            bot.send_message(message.chat.id, success)
+            return
+
+    warning = "Не было найдено подходящей записи. При необходимости повторите запрос"
+
+    bot.send_message(message.chat.id, warning)
 
 def convert (day, month, year):
     s = ""
@@ -219,20 +246,25 @@ def edit_query_handling(message, d, m, y, n):
 def got_add_query(msg):
     s1 = msg.text.split(' ')
 
-    if (len(s1) != 2):
+    '''if (len(s1) != 2):
         print(len(s1))
         print(s1)
         warning = "Некорректный ввод имени"
         bot.send_message(msg.chat.id, warning)
         add(msg)
-        return
+        return'''
+
+    name = ""
+    for i in range(1, len(s1)):
+        name += s1[i]
+        name += ' '
 
     s = s1[0]
 
     if (len(s) != 10):
         print(len(s))
         print(s)
-        warning = "Некорректный ввод даты4"
+        warning = "Некорректный ввод даты"
         bot.send_message(msg.chat.id, warning)
         add(msg)
         return
@@ -282,7 +314,6 @@ def got_add_query(msg):
     uname = msg.from_user.username
     day = int(day)
     month = int(month)
-    name = s1[1]
     tg_msg = pickle.dumps(msg)
     print("deserealized: ", tg_msg)
     congrat = 0
