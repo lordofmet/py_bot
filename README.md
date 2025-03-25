@@ -2,15 +2,15 @@
 
 Примеры работы:
 
-![](images/start.png)
+![](start.png)
 
 Стартовое окно бота \.
 
-![](images/add.png)
+![](add.png)
 
 Добавление записи \.
 
-![](images/delete.png)
+![](delete.png)
 
 Удаление записи \.
 
